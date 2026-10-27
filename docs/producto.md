@@ -85,14 +85,14 @@ Este modelo no forma parte de la fase base. Primero se implementará el acceso d
 **Al suspender un negocio:**
 
 - Sus datos no se tocan.
-- Los usuarios pueden iniciar sesión, pero todos los endpoints responden `403` con el código `TENANT_SUSPENDED`, y el frontend muestra "Cuenta suspendida, comunícate con…".
+- Los usuarios pueden presentar sus credenciales, pero login y refresh responden `403` con el código `TENANT_SUSPENDED` y no emiten tokens nuevos. El frontend muestra "Cuenta suspendida, comunícate con…".
 - El estado se revisa al iniciar sesión y en cada renovación del token. Como el access token dura unos 15 minutos, la suspensión se aplica como máximo en ese tiempo, sin consultar la base de datos en cada petición.
 - Al reactivar, todo vuelve tal cual.
 
 ### 6.2 Cuenta y usuarios
 
 - Registro público del dueño en dos pasos visuales: primero su cuenta y después su negocio. Los dos pasos viven solo en el frontend; al finalizar se envía una única petición al backend.
-- El segundo paso solicita el nombre, giro, país y color principal del negocio. El color se guarda en el tenant con formato `#RRGGBB` y personaliza la interfaz.
+- El segundo paso solicita el nombre, subdominio, giro, país y color principal del negocio. El subdominio es único y reserva su futura URL; el color se guarda en el tenant con formato `#RRGGBB` y personaliza la interfaz.
 - El registro crea el negocio, el usuario dueño, su sesión y la sucursal principal dentro de una sola transacción. Si algo falla, no queda ninguna cuenta o negocio creado a medias.
 - El negocio empieza en estado `ACTIVO` y el dueño accede directamente al sistema al terminar el registro.
 - El correo de bienvenida se envía después de confirmar la transacción y un fallo del correo no revierte el registro.
@@ -232,7 +232,7 @@ Reglas:
   - todas las rutas cuelgan de `/api/v1`;
   - los errores tienen siempre la forma `{ code, message, details }`, con códigos estables como `TENANT_SUSPENDED`, porque la app del celular depende de ellos.
 - **Solo migraciones:** nunca `synchronize: true`.
-- **Columnas de auditoría** en todas las tablas: `created_at`, `updated_at` y `created_by`.
+- **Columnas de auditoría:** todas las tablas persistentes llevan `created_at` y, cuando pueden cambiar, `updated_at`; las operaciones de negocio guardan `created_by` cuando existe un actor autenticado. Tokens y sesiones conservan su usuario, IP y user agent en campos propios.
 - **Fronteras entre módulos:**
   - un módulo nunca consulta las tablas de otro, solo usa su servicio;
   - las transacciones que cruzan módulos se comparten con `@nestjs-cls/transactional`.
