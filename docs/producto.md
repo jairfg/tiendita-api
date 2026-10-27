@@ -38,7 +38,7 @@ El proyecto tiene dos objetivos:
 - Piloto gratuito con los primeros negocios.
 - Después, cobro directo por transferencia bancaria. No hay tarjeta, ni pagos recurrentes automáticos, ni planes, ni "plan free".
 - El dueño se registra, crea su negocio y accede directamente. El negocio empieza en estado `ACTIVO`.
-- La suspensión y reactivación del acceso se hacen manualmente desde el panel de super admin.
+- En la fase base, la suspensión y reactivación se hacen desde el REPL de NestJS cambiando el estado del tenant. No requieren una interfaz de super admin.
 - Las condiciones se comunican desde el primer día, por ejemplo: "gratis durante el piloto; después S/ X al mes; precio de fundador para los primeros 10 negocios".
 - Los planes y suscripciones se implementan recién cuando haya 2 o 3 negocios pagando.
 
@@ -55,7 +55,7 @@ El proyecto tiene dos objetivos:
 
 Regla de código: se verifican **permisos** (`sale:void`), nunca nombres de rol (`role === 'ADMIN'`). Los roles solo agrupan permisos, así que agregar roles después es configuración, no reescritura.
 
-Permisos de la versión 1 (propuesta inicial, se valida con el piloto):
+Este modelo no forma parte de la fase base. Primero se implementará el acceso del dueño; los roles, permisos, cajeros e invitaciones se diseñarán después de validar sus necesidades. La siguiente tabla es solo una propuesta inicial para la versión 1:
 
 | Acción                                    | Dueño    | Cajero          |
 | ----------------------------------------- | -------- | --------------- |
@@ -92,7 +92,8 @@ Permisos de la versión 1 (propuesta inicial, se valida con el piloto):
 ### 6.2 Cuenta y usuarios
 
 - Registro público del dueño en dos pasos visuales: primero su cuenta y después su negocio. Los dos pasos viven solo en el frontend; al finalizar se envía una única petición al backend.
-- El registro crea el negocio, el usuario dueño, sus permisos y la sucursal principal dentro de una sola transacción. Si algo falla, no queda ninguna cuenta o negocio creado a medias.
+- El segundo paso solicita el nombre, giro, país y color principal del negocio. El color se guarda en el tenant con formato `#RRGGBB` y personaliza la interfaz.
+- El registro crea el negocio, el usuario dueño, su sesión y la sucursal principal dentro de una sola transacción. Si algo falla, no queda ninguna cuenta o negocio creado a medias.
 - El negocio empieza en estado `ACTIVO` y el dueño accede directamente al sistema al terminar el registro.
 - El correo de bienvenida se envía después de confirmar la transacción y un fallo del correo no revierte el registro.
 - Login con email y contraseña, access token + refresh token, y logout.
@@ -222,9 +223,10 @@ Reglas:
 - **Nada se borra:** ventas, abonos y gastos se anulan con un registro aparte.
 - **Idempotencia:** toda operación que crea algo desde el POS acepta una clave de idempotencia.
 - **Concurrencia:** el correlativo se asigna dentro de una transacción con bloqueo.
-- **Registro atómico:** una sola transacción crea el negocio, el dueño, sus permisos y la sucursal principal. La sesión se entrega y el correo de bienvenida se envía solo después de confirmar la transacción.
+- **Registro atómico:** una sola transacción crea el negocio, el dueño, su sesión y la sucursal principal. El correo de bienvenida se envía solo después de confirmar la transacción.
 - **Sucursal principal:** un índice único parcial de Postgres garantiza como máximo un `Location` con `is_main = true` por negocio. `is_main` es falso por defecto y se asigna explícitamente al crear la sucursal principal.
-- **Permisos, no roles**, en toda la autorización.
+- **Color del negocio:** `primary_color` es opcional y, cuando existe, tiene el formato `#RRGGBB`. Si no existe, el frontend usa el color predeterminado del producto.
+- **Permisos futuros:** cuando se implemente la autorización de Dueño y Cajero, el código comprobará permisos, no nombres de rol.
 - **Copia de datos al vender:** una venta no cambia si después cambia el producto.
 - **API versionada y errores uniformes:**
   - todas las rutas cuelgan de `/api/v1`;
@@ -238,35 +240,36 @@ Reglas:
 
 ## 10. Stack técnico
 
-| Área                                                           | Tecnología                                                                |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Framework                                                      | NestJS 12 (ESM), ya configurado                                           |
-| Base de datos                                                  | PostgreSQL con Docker Compose                                             |
-| ORM                                                            | TypeORM con migraciones                                                   |
-| Contexto por petición (tenant actual)                          | `nestjs-cls`                                                              |
-| Configuración                                                  | `@nestjs/config` con las variables de entorno validadas                   |
-| Autenticación                                                  | `@nestjs/passport`, `passport-jwt`, `@nestjs/jwt`; contraseñas con argon2 |
-| Validación                                                     | `class-validator` y `class-transformer` con `ValidationPipe` global       |
-| Documentación de la API                                        | `@nestjs/swagger`                                                         |
-| Seguridad                                                      | helmet, CORS y `@nestjs/throttler`                                        |
-| Logs                                                           | `nestjs-pino`                                                             |
-| Observabilidad                                                 | NestJS Observe, ya configurado (ver `AGENTS.md`)                          |
-| Dinero                                                         | `decimal.js`                                                              |
-| Excel                                                          | `exceljs`                                                                 |
-| Emails (bienvenida, invitaciones y recuperación de contraseña) | Nodemailer, con Mailpit en local                                          |
-| Tests                                                          | Vitest y supertest                                                        |
-| Lint y formato                                                 | oxlint y Prettier, ya configurados                                        |
-| CI                                                             | GitHub Actions                                                            |
-| Colas y caché                                                  | Redis y BullMQ, solo cuando hagan falta                                   |
-| Frontend                                                       | PWA mobile-first con modo offline; tecnología y repositorio por definir   |
+| Área                                                           | Tecnología                                                                                                             |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Framework                                                      | NestJS 12 (ESM), ya configurado                                                                                        |
+| Base de datos                                                  | PostgreSQL con Docker Compose                                                                                          |
+| ORM                                                            | TypeORM con migraciones                                                                                                |
+| Contexto por petición (tenant actual)                          | `nestjs-cls`                                                                                                           |
+| Configuración                                                  | `@nestjs/config` con las variables de entorno validadas                                                                |
+| Autenticación                                                  | `@nestjs/passport`, `passport-jwt`, `@nestjs/jwt`; contraseñas con argon2                                              |
+| Validación                                                     | `class-validator` y `class-transformer` con `ValidationPipe` global                                                    |
+| Documentación de la API                                        | `@nestjs/swagger`                                                                                                      |
+| Seguridad                                                      | helmet, CORS y `@nestjs/throttler`                                                                                     |
+| Logs                                                           | `nestjs-pino`                                                                                                          |
+| Observabilidad                                                 | NestJS Observe, ya configurado (ver `AGENTS.md`)                                                                       |
+| Dinero                                                         | `decimal.js`                                                                                                           |
+| Excel                                                          | `exceljs`                                                                                                              |
+| Emails (bienvenida, invitaciones y recuperación de contraseña) | Nodemailer, con Mailpit en local                                                                                       |
+| Tests                                                          | Vitest y supertest                                                                                                     |
+| Lint y formato                                                 | oxlint y Prettier, ya configurados                                                                                     |
+| CI                                                             | GitHub Actions                                                                                                         |
+| Colas y caché                                                  | Redis y BullMQ; se incorporan en la fase base para el envío de correos                                                 |
+| Frontend                                                       | Aplicación web responsive y mobile-first, reutilizando componentes de Lebenix; evolucionará a PWA para el modo offline |
 
 ## 11. Fases de desarrollo de la versión 1
 
-1. **Base:**
-   - Docker Compose (Postgres y Mailpit), configuración, TypeORM con migraciones, Swagger, Pino y helmet.
-   - Registro público y atómico del negocio, dueño, permisos y `Location` principal, con acceso inmediato y correo de bienvenida.
-   - Multi-tenant; login, renovación de sesión, logout y recuperación de contraseña; invitación y desactivación de cajeros.
-   - Panel de super admin: listar negocios, suspender, reactivar y ver actividad.
+1. **Base del backend:**
+   - [Diseño detallado de la fase base](./fase-1-base.md).
+   - Docker Compose (Postgres, Mailpit y Redis), configuración, TypeORM con migraciones, Swagger, Pino y helmet.
+   - Registro público y atómico del negocio, dueño, sesión y `Location` principal, con acceso inmediato y correo de bienvenida.
+   - Multi-tenant; login, renovación de sesión, logout y recuperación de contraseña.
+   - Estado `ACTIVE` o `SUSPENDED` del tenant administrado desde el REPL de NestJS; sin panel de super admin.
    - Tests de aislamiento entre negocios.
 2. **Productos:** catálogo, favoritos, venta por monto y por peso, plantillas por giro e importación desde CSV.
 3. **Ventas y gastos:** venta rápida, medios de pago, numeración, anulaciones, gastos, idempotencia y sincronización offline.
