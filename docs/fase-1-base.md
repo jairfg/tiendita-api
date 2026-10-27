@@ -25,6 +25,7 @@ Al terminar esta fase, la API podrá registrar al dueño y su negocio, crear una
 - La respuesta del registro entregará inmediatamente una sesión autenticada. El correo de bienvenida no bloqueará ni revertirá el registro.
 - En esta fase todos los usuarios son dueños creados mediante el registro público. No se implementarán roles, permisos, cajeros ni invitaciones hasta definir sus reglas con claridad.
 - No se expondrán endpoints de administración. El estado `ACTIVE` o `SUSPENDED` del tenant se cambiará desde el REPL de NestJS mediante su repositorio de TypeORM.
+- Cada tenant tendrá un `subdomain` público, obligatorio y único, que identificará su futura URL y permitirá obtener su marca antes de iniciar sesión.
 - Cada tenant tendrá un `primaryColor` como dato de configuración de marca.
 - Cada tenant tendrá una sola `Location`: `Sucursal principal`.
 - El access token será JWT y tendrá una duración aproximada de 15 minutos.
@@ -48,11 +49,12 @@ La petición recibe:
 La petición recibe:
 
 - nombre del negocio;
+- subdominio;
 - giro: bodega, panadería, tienda u otro;
 - país, inicialmente Perú;
 - color principal opcional.
 
-El contrato no recibe subdominio, moneda, zona horaria ni nombre de sucursal. Para Perú, el backend asignará:
+El contrato no recibe moneda, zona horaria ni nombre de sucursal. Para Perú, el backend asignará:
 
 ```text
 currency: PEN
@@ -76,6 +78,7 @@ POST /api/v1/auth/registrations
   },
   "tenant": {
     "name": "Panadería Flores",
+    "subdomain": "panaderia-flores",
     "businessType": "BAKERY",
     "country": "PE",
     "primaryColor": "#3AAE9B"
@@ -85,8 +88,8 @@ POST /api/v1/auth/registrations
 
 El backend ejecutará:
 
-1. Normalizar y validar el correo.
-2. Crear el tenant en estado `ACTIVE`.
+1. Normalizar y validar el correo y el subdominio.
+2. Crear el tenant en estado `ACTIVE`, respetando la restricción única del subdominio.
 3. Crear el usuario dueño con su contraseña hasheada.
 4. Crear `Sucursal principal` con `isMain: true` e `isActive: true`.
 5. Crear la sesión con el hash del refresh token.
@@ -113,12 +116,63 @@ Reglas:
 - El formato se validará en el DTO y mediante un `CHECK` de PostgreSQL.
 - Las respuestas de registro y autenticación incluirán `tenant.primaryColor`.
 
-## 5. Modelo de datos inicial
+## 5. Subdominio
+
+El subdominio será la identidad pública estable del negocio y reservará una dirección como `panaderia-flores.dominio.com`. En esta fase solo se implementarán el modelo y su contrato de API.
+
+Reglas:
+
+- será obligatorio y tendrá un máximo de 63 caracteres;
+- se normalizará con `trim` y conversión a minúsculas antes de validarlo;
+- comenzará y terminará con una letra minúscula o un número;
+- solo admitirá letras ASCII minúsculas, números y guiones intermedios;
+- no admitirá nombres reservados como `www`, `api`, `app`, `admin`, `mail`, `dev`, `test`, `support`, `docs`, `assets`, `cdn` o `static`;
+- PostgreSQL impondrá `NOT NULL`, un `CHECK` de formato y un índice único;
+- la restricción única de la base de datos será la autoridad final frente a registros concurrentes.
+
+Ejemplos válidos:
+
+```text
+bodega
+bodega-central
+tienda123
+```
+
+Ejemplos inválidos:
+
+```text
+-bodega
+bodega-
+bodega_central
+Bodega Central
+api
+```
+
+La disponibilidad podrá consultarse antes del registro:
+
+```http
+GET /api/v1/auth/subdomains/:subdomain/availability
+```
+
+La respuesta distinguirá entre `INVALID`, `RESERVED` y `TAKEN`. Este endpoint reutilizará exactamente la misma normalización y validación que el registro, tendrá rate limiting y no sustituirá la restricción única de PostgreSQL.
+
+También existirá una consulta pública y mínima para obtener la marca antes de autenticar:
+
+```http
+GET /api/v1/auth/tenants/:subdomain/branding
+```
+
+Su respuesta solo expondrá `name` y `primaryColor`. El subdominio no se usará como autoridad de seguridad: después de autenticar, el tenant siempre se obtendrá del usuario y de su sesión.
+
+No se implementarán dominios personalizados ni cambios de subdominio en esta fase.
+
+## 6. Modelo de datos inicial
 
 ### `tenants`
 
 - `id`;
 - `name`;
+- `subdomain`;
 - `business_type`;
 - `country`;
 - `currency`;
@@ -151,7 +205,7 @@ PostgreSQL tendrá un índice único parcial que permita como máximo un registr
 - fecha del último acceso;
 - columnas de auditoría.
 
-Como el login no utiliza subdominio ni selector de negocio, el correo será único globalmente mediante un índice sobre `lower(email)`.
+El correo será único globalmente mediante un índice sobre `lower(email)`. El subdominio ofrece contexto de URL y marca, pero no permite que una misma dirección de correo represente cuentas diferentes en distintos tenants.
 
 ### Roles y permisos
 
@@ -178,7 +232,9 @@ La recuperación de contraseña utilizará tokens aleatorios de alta entropía. 
 
 No se usarán JWT para recuperación de contraseña: estos tokens deben poder consumirse una sola vez y revocarse desde la base de datos.
 
-## 6. Autenticación y sesiones
+## 7. Autenticación y sesiones
+
+El login central utilizará correo y contraseña. Una solicitud de login podrá enviar además el subdominio como contexto opcional; la API lo normalizará y comprobará que corresponde al tenant del usuario. Nunca confiará en él para establecer el contexto de una petición protegida.
 
 ### Access token
 
@@ -197,7 +253,7 @@ No se usarán JWT para recuperación de contraseña: estos tokens deben poder co
 
 El estado del tenant se consulta durante login y refresh. De este modo, una suspensión se aplica como máximo cuando expire el access token vigente.
 
-## 7. Recuperación de contraseña
+## 8. Recuperación de contraseña
 
 ```http
 POST /api/v1/auth/password/forgot
@@ -207,12 +263,13 @@ POST /api/v1/auth/password/reset
 Reglas:
 
 - La solicitud responde igual exista o no el correo, para no revelar cuentas registradas.
+- Como el correo es único globalmente, la recuperación no requiere un subdominio.
 - El token será aleatorio, de un solo uso y con expiración corta.
 - El correo se enviará mediante una cola.
 - Al cambiar la contraseña se revocarán todas las sesiones activas del usuario.
 - Un token vencido, usado o inválido devolverá un código de error estable sin revelar detalles internos.
 
-## 8. Multi-tenancy
+## 9. Multi-tenancy
 
 `nestjs-cls` conservará el contexto de la petición:
 
@@ -236,7 +293,7 @@ El registro, login, refresh y recuperación son endpoints públicos o preautenti
 
 Las transacciones que atraviesen módulos utilizarán `@nestjs-cls/transactional` con su adaptador de TypeORM.
 
-## 9. Correo y trabajos en segundo plano
+## 10. Correo y trabajos en segundo plano
 
 Se usarán:
 
@@ -252,7 +309,7 @@ Plantillas iniciales:
 
 Los jobs se crean después de confirmar la transacción que origina el correo. Un fallo de SMTP no revierte un usuario, tenant o token ya creado.
 
-## 10. Librerías
+## 11. Librerías
 
 ### Producción
 
@@ -295,10 +352,12 @@ No se usará `passport-local`: el login con email y contraseña se implementará
 
 Vitest y Supertest ya están configurados.
 
-## 11. Endpoints de esta parte
+## 12. Endpoints de esta parte
 
 ```text
 POST /api/v1/auth/registrations
+GET  /api/v1/auth/subdomains/:subdomain/availability
+GET  /api/v1/auth/tenants/:subdomain/branding
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
@@ -309,7 +368,7 @@ POST /api/v1/auth/password/reset
 
 Esta fase no expone endpoints de administración de tenants. Su estado se consulta y modifica directamente desde el REPL de NestJS con el repositorio de TypeORM.
 
-## 12. Errores estables
+## 13. Errores estables
 
 Todos los errores conservan la forma:
 
@@ -324,18 +383,24 @@ Todos los errores conservan la forma:
 Códigos iniciales:
 
 - `EMAIL_ALREADY_REGISTERED`;
+- `INVALID_SUBDOMAIN`;
+- `SUBDOMAIN_RESERVED`;
+- `SUBDOMAIN_ALREADY_TAKEN`;
 - `INVALID_CREDENTIALS`;
 - `INVALID_OR_EXPIRED_TOKEN`;
 - `SESSION_REVOKED`;
 - `TENANT_SUSPENDED`;
 - `USER_DISABLED`.
 
-## 13. Pruebas mínimas de aceptación
+## 14. Pruebas mínimas de aceptación
 
 - El registro crea tenant, dueño, sesión y `Location` principal.
 - Si falla la creación de cualquier elemento, la transacción no deja registros parciales.
 - El registro devuelve acceso inmediato aunque el envío de bienvenida falle.
 - Un correo duplicado no puede registrarse bajo diferencias de mayúsculas o espacios.
+- El subdominio se normaliza, rechaza formatos y nombres reservados, y permanece único ante registros concurrentes.
+- La disponibilidad y el registro aplican exactamente las mismas reglas al subdominio.
+- La consulta pública de marca no expone campos internos del tenant.
 - Una contraseña nunca aparece en respuestas, logs ni entidades serializadas.
 - Login, refresh rotativo y logout funcionan correctamente.
 - Un refresh token revocado o reutilizado no genera una sesión nueva.
@@ -349,7 +414,7 @@ Códigos iniciales:
 
 Las pruebas de integración usarán PostgreSQL real con Testcontainers para comprobar transacciones, índices parciales, restricciones y aislamiento.
 
-## 14. Fuera de alcance
+## 15. Fuera de alcance
 
 - planes y suscripciones;
 - pagos automáticos;
@@ -357,24 +422,25 @@ Las pruebas de integración usarán PostgreSQL real con Testcontainers para comp
 - roles y permisos;
 - cajeros e invitaciones de usuarios;
 - login social y MFA;
+- dominios personalizados y cambios de subdominio;
 - sincronización de operaciones offline;
 - productos, ventas, gastos y fiados;
 - otros datos de configuración de marca.
 
-## 15. Orden de implementación
+## 16. Orden de implementación
 
 1. Configuración validada y Docker Compose con PostgreSQL, Mailpit y Redis.
 2. TypeORM, datasource y migraciones iniciales.
-3. Entidades de tenant, usuario, `Location` y sesiones.
+3. Entidades de tenant, usuario, `Location` y sesiones, incluidas las restricciones del subdominio.
 4. Contexto multi-tenant y transacciones propagadas.
-5. Registro atómico y acceso inmediato.
+5. Registro atómico, disponibilidad y consulta pública de marca.
 6. Login, refresh rotativo, `/me` y logout.
 7. Cola de correo y bienvenida.
 8. Recuperación de contraseña.
 9. Suspensión del tenant desde el REPL de NestJS.
 10. Tests e2e de aislamiento, concurrencia y seguridad.
 
-## 16. Pendientes de esta fase
+## 17. Pendientes de esta fase
 
 - Elegir el proveedor SMTP de producción.
 - Definir si `primary_color` conservará `null` o tendrá un valor predeterminado en la base de datos.
