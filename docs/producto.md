@@ -255,7 +255,7 @@ Reglas:
 | Observabilidad                                                 | NestJS Observe, ya configurado (ver `AGENTS.md`)                                                                       |
 | Dinero                                                         | `decimal.js`                                                                                                           |
 | Excel                                                          | `exceljs`                                                                                                              |
-| Emails (bienvenida, invitaciones y recuperación de contraseña) | Nodemailer, con Mailpit en local                                                                                       |
+| Emails (bienvenida, invitaciones y recuperación de contraseña) | Nodemailer y SendGrid SMTP en desarrollo y producción; mailer falso en pruebas                                         |
 | Tests                                                          | Vitest y supertest                                                                                                     |
 | Lint y formato                                                 | oxlint y Prettier, ya configurados                                                                                     |
 | CI                                                             | GitHub Actions                                                                                                         |
@@ -266,7 +266,7 @@ Reglas:
 
 1. **Base del backend:**
    - [Diseño detallado de la fase base](./fase-1-base.md).
-   - Docker Compose (Postgres, Mailpit y Redis), configuración, TypeORM con migraciones, Swagger, Pino y helmet.
+   - Docker Compose (Postgres y Redis), configuración, TypeORM con migraciones, Swagger, Pino y helmet.
    - Registro público y atómico del negocio, dueño, sesión y `Location` principal, con acceso inmediato y correo de bienvenida.
    - Multi-tenant; login, renovación de sesión, logout y recuperación de contraseña.
    - Estado `ACTIVE` o `SUSPENDED` del tenant administrado desde el REPL de NestJS; sin panel de super admin.

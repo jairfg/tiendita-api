@@ -347,15 +347,17 @@ Se usarán:
 
 - Nodemailer para SMTP;
 - Handlebars para plantillas;
-- Mailpit en desarrollo;
+- SendGrid mediante SMTP en desarrollo y producción;
 - BullMQ y Redis para ejecutar envíos fuera de la petición y reintentarlos.
+
+SendGrid tendrá una API key propia para este proyecto y limitada al permiso de envío de correo; no se reutilizará la credencial de Lebenix. El remitente o dominio se verificará en SendGrid. Fuera de producción, los asuntos comenzarán con `[DEV]` para identificar claramente los mensajes de prueba.
 
 Plantillas iniciales:
 
 - bienvenida al dueño;
 - recuperación de contraseña.
 
-Los jobs se crean después de confirmar la transacción que origina el correo. Un fallo de SMTP no revierte un usuario, tenant o token ya creado.
+Los jobs se crean después de confirmar la transacción que origina el correo. Un fallo de SendGrid o SMTP no revierte un usuario, tenant o token ya creado.
 
 Los jobs usarán identificadores estables, tres intentos y backoff exponencial. La fase 1 no implementará transactional outbox: si Redis no acepta el job después del commit, el error se registrará en logs y NestJS Observe. El correo de bienvenida es de mejor esfuerzo; una nueva solicitud de recuperación podrá generar y encolar otro token si el envío anterior no llegó.
 
@@ -555,7 +557,7 @@ Las pruebas de integración usarán PostgreSQL real con Testcontainers para comp
 
 ## 16. Orden de implementación
 
-1. Configuración validada y Docker Compose con PostgreSQL, Mailpit y Redis.
+1. Configuración validada y Docker Compose con PostgreSQL y Redis.
 2. Bootstrap global, errores uniformes, seguridad HTTP, logs y redacción de secretos.
 3. TypeORM, datasource, comandos y migraciones iniciales.
 4. Entidades de tenant, usuario, `Location`, sesiones y recuperación, incluidas sus restricciones.
@@ -569,7 +571,7 @@ Las pruebas de integración usarán PostgreSQL real con Testcontainers para comp
 
 ## 17. Pendientes de esta fase
 
-- Elegir el proveedor SMTP de producción.
+- Crear una API key restringida y verificar el remitente o dominio de este proyecto en SendGrid.
 - Definir los orígenes y dominios finales para cerrar la configuración de CORS y cookies.
 - Medir Argon2id en el entorno de despliegue y ajustar sus parámetros sin cambiar el contrato de contraseñas.
 
