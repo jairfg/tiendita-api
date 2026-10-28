@@ -5,6 +5,28 @@ const optionalNonEmptyString = z.preprocess(
   z.string().trim().min(1).optional(),
 );
 
+const corsOriginSchema = z
+  .string()
+  .url()
+  .refine(
+    (value) => value.startsWith('http://') || value.startsWith('https://'),
+    {
+      message: 'must use the http:// or https:// protocol',
+    },
+  );
+
+const corsOriginsSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .transform((value) =>
+    value
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  )
+  .pipe(z.array(corsOriginSchema).min(1));
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -12,6 +34,8 @@ export const envSchema = z
       .default('development'),
 
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+
+    CORS_ORIGINS: corsOriginsSchema,
 
     DATABASE_URL: z
       .string()

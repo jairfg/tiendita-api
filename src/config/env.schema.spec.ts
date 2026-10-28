@@ -4,6 +4,7 @@ const validEnvironment = {
   DATABASE_URL:
     'postgresql://tiendita:tiendita_dev@localhost:5435/tiendita_development',
   REDIS_URL: 'redis://localhost:6380',
+  CORS_ORIGINS: 'http://localhost:5173',
 };
 
 describe('envSchema', () => {
@@ -49,6 +50,31 @@ describe('envSchema', () => {
           }),
         ]),
       );
+    }
+  });
+
+  it('converts comma-separated CORS origins into an array', () => {
+    const environment = envSchema.parse({
+      ...validEnvironment,
+      CORS_ORIGINS: 'http://localhost:5173, https://admin.tiendita.com',
+    });
+
+    expect(environment.CORS_ORIGINS).toEqual([
+      'http://localhost:5173',
+      'https://admin.tiendita.com',
+    ]);
+  });
+
+  it('rejects an invalid CORS origin', () => {
+    const result = envSchema.safeParse({
+      ...validEnvironment,
+      CORS_ORIGINS: 'http://localhost:5173, ftp://files.tiendita.com',
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toContain('CORS_ORIGINS');
     }
   });
 
