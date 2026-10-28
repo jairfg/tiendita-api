@@ -19,7 +19,14 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "db:typeorm": "node --env-file=.env --import tsx ./node_modules/typeorm/cli.js",
+    "db:migration:create": "npm run db:typeorm -- migration:create --esm",
+    "db:migration:generate": "npm run db:typeorm -- migration:generate --esm --pretty -d src/database/data-source.ts",
+    "db:migration:show": "npm run db:typeorm -- migration:show -d src/database/data-source.ts",
+    "db:migration:run": "npm run db:typeorm -- migration:run -d src/database/data-source.ts",
+    "db:migration:revert": "npm run db:typeorm -- migration:revert -d src/database/data-source.ts",
+    "db:migration:run:prod": "node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

@@ -4,6 +4,7 @@ import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { envSchema, type EnvironmentVariables } from './config/env.schema.js';
+import { DatabaseModule } from './database/database.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -14,6 +15,8 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       isGlobal: true,
       validationSchema: envSchema,
     }),
+
+    DatabaseModule,
 
     ObserveModule.forRootAsync({
       inject: [ConfigService],
