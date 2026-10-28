@@ -371,12 +371,12 @@ Antes de registrar controladores funcionales, el bootstrap global configurará:
 - serialización de respuestas sin contraseñas, hashes ni campos internos;
 - Helmet, CORS con orígenes explícitos y `cookie-parser`;
 - shutdown hooks para cerrar base de datos, Redis y jobs;
-- logs estructurados con redacción de `authorization`, `cookie`, contraseñas y tokens;
-- NestJS Observe sin capturar secretos ni cuerpos sensibles.
+- logs estructurados que nunca incluirán `authorization`, cookies, contraseñas ni tokens;
+- NestJS Observe con correlación por `traceId` y redacción antes de enviar telemetría.
 
-El código de la aplicación registrará eventos mediante `nestjs-pino`; no llamará directamente a la API de Observe desde controladores o servicios de negocio. Pino escribirá logs JSON en consola y NestJS Observe los centralizará y correlacionará con la petición, su traza, métricas y excepciones. Los logs podrán incluir `requestId`, `tenantId`, `userId`, `sessionId`, nombre de la operación y código de error, pero nunca credenciales ni tokens.
+El código de la aplicación registrará eventos mediante `Logger` de `@nestjs/common`; no utilizará Observe como un logger desde controladores o servicios de negocio. `ConsoleLogger` producirá una salida legible en desarrollo y JSON estructurado en producción. NestJS Observe agregará el `traceId` y, cuando `OBSERVE_FORWARD_LOGS` esté habilitado, centralizará los logs junto con la petición, su traza, métricas y excepciones. Los logs podrán incluir `tenantId`, `userId`, `sessionId`, nombre de la operación y código de error, pero nunca credenciales ni tokens.
 
-Se usarán los niveles de forma consistente: `info` para operaciones importantes completadas, `warn` para situaciones sospechosas o recuperables, `error` para fallos que requieren atención y `debug` para diagnóstico local. Lanzar una excepción y registrar un evento serán decisiones separadas; no se duplicará el mismo error en cada capa.
+Se usarán los niveles de forma consistente: `log` para operaciones importantes completadas, `warn` para situaciones sospechosas o recuperables, `error` para fallos que requieren atención, `fatal` para fallos que impiden continuar y `debug` para diagnóstico local. Lanzar una excepción y registrar un evento serán decisiones separadas; no se duplicará el mismo error en cada capa.
 
 El rate limiting usará Redis en producción y claves que combinen IP con el identificador normalizado cuando corresponda. Los límites iniciales serán: registro, 5 por hora; login, 10 por minuto; recuperación, 5 por hora; disponibilidad de subdominio, 30 por minuto; y API general, 300 cada 5 minutos. La IP del cliente solo se aceptará desde proxies de confianza configurados explícitamente.
 
@@ -403,8 +403,6 @@ cookie-parser
 helmet
 class-validator
 class-transformer
-nestjs-pino
-pino-http
 nodemailer
 handlebars
 @nestjs/bullmq

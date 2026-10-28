@@ -251,7 +251,7 @@ Reglas:
 | Validación                                                     | `class-validator` y `class-transformer` con `ValidationPipe` global                                                    |
 | Documentación de la API                                        | `@nestjs/swagger`                                                                                                      |
 | Seguridad                                                      | helmet, CORS y `@nestjs/throttler`                                                                                     |
-| Logs                                                           | `nestjs-pino`                                                                                                          |
+| Logs                                                           | `Logger` y `ConsoleLogger` nativos de NestJS 12; JSON estructurado en producción                                       |
 | Observabilidad                                                 | NestJS Observe, ya configurado (ver `AGENTS.md`)                                                                       |
 | Dinero                                                         | `decimal.js`                                                                                                           |
 | Excel                                                          | `exceljs`                                                                                                              |
@@ -266,7 +266,7 @@ Reglas:
 
 1. **Base del backend:**
    - [Diseño detallado de la fase base](./fase-1-base.md).
-   - Docker Compose (Postgres y Redis), configuración, TypeORM con migraciones, Swagger, Pino y helmet.
+   - Docker Compose (Postgres y Redis), configuración, TypeORM con migraciones, Swagger, logs JSON, NestJS Observe y helmet.
    - Registro público y atómico del negocio, dueño, sesión y `Location` principal, con acceso inmediato y correo de bienvenida.
    - Multi-tenant; login, renovación de sesión, logout y recuperación de contraseña.
    - Estado `ACTIVE` o `SUSPENDED` del tenant administrado desde el REPL de NestJS; sin panel de super admin.

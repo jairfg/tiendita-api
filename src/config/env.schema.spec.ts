@@ -13,6 +13,17 @@ describe('envSchema', () => {
 
     expect(environment.NODE_ENV).toBe('development');
     expect(environment.PORT).toBe(3000);
+    expect(environment.LOG_LEVEL).toBe('log');
+    expect(environment.OBSERVE_FORWARD_LOGS).toBe(false);
+  });
+
+  it('converts the Observe log forwarding flag to a boolean', () => {
+    const environment = envSchema.parse({
+      ...validEnvironment,
+      OBSERVE_FORWARD_LOGS: 'true',
+    });
+
+    expect(environment.OBSERVE_FORWARD_LOGS).toBe(true);
   });
 
   it('rejects an invalid port', () => {
@@ -28,6 +39,25 @@ describe('envSchema', () => {
         expect.arrayContaining([
           expect.objectContaining({
             path: ['PORT'],
+          }),
+        ]),
+      );
+    }
+  });
+
+  it('rejects an invalid log level', () => {
+    const result = envSchema.safeParse({
+      ...validEnvironment,
+      LOG_LEVEL: 'info',
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: ['LOG_LEVEL'],
           }),
         ]),
       );

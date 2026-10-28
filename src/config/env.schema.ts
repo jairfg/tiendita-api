@@ -5,6 +5,10 @@ const optionalNonEmptyString = z.preprocess(
   z.string().trim().min(1).optional(),
 );
 
+const booleanEnvironmentVariable = z
+  .enum(['true', 'false'])
+  .transform((value) => value === 'true');
+
 const corsOriginSchema = z
   .string()
   .url()
@@ -35,6 +39,10 @@ export const envSchema = z
 
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
 
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'log', 'debug', 'verbose'])
+      .default('log'),
+
     CORS_ORIGINS: corsOriginsSchema,
 
     DATABASE_URL: z
@@ -57,6 +65,7 @@ export const envSchema = z
 
     OBSERVE_APP_KEY: optionalNonEmptyString,
     OBSERVE_APP_SECRET: optionalNonEmptyString,
+    OBSERVE_FORWARD_LOGS: booleanEnvironmentVariable.default(false),
   })
   .superRefine((environment, context) => {
     const hasObserveKey = Boolean(environment.OBSERVE_APP_KEY);
