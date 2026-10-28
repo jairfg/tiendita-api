@@ -31,6 +31,13 @@ const corsOriginsSchema = z
   )
   .pipe(z.array(corsOriginSchema).min(1));
 
+export const databaseUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => value.startsWith('postgresql://'), {
+    message: 'must use the postgresql:// protocol',
+  });
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -45,12 +52,7 @@ export const envSchema = z
 
     CORS_ORIGINS: corsOriginsSchema,
 
-    DATABASE_URL: z
-      .string()
-      .url()
-      .refine((value) => value.startsWith('postgresql://'), {
-        message: 'must use the postgresql:// protocol',
-      }),
+    DATABASE_URL: databaseUrlSchema,
 
     REDIS_URL: z
       .string()
