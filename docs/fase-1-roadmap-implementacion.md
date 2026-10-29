@@ -96,16 +96,16 @@ git push
   - sin drift entre entidad y esquema;
   - commit publicado: `443bfb1 feat: add tenant persistence`.
 
-### En progreso: `Location`
+### `Location` terminada y versionada
 
-Existen, pero todavía no están versionados:
+Archivos:
 
 ```text
 src/tenants/entities/location.entity.ts
 src/database/migrations/1793287429881-CreateLocationsTable.ts
 ```
 
-Ya se comprobó:
+Se comprobó:
 
 - tabla `locations` creada localmente;
 - FK `FK_locations_tenant` con `ON DELETE RESTRICT`;
@@ -113,17 +113,14 @@ Ya se comprobó:
 - índice único parcial `UQ_locations_main_per_tenant` con
   `WHERE is_main = true`;
 - check `CHK_locations_name_not_blank`;
-- `SchemaCheck` sin diferencias entre entidad y base.
+- una sucursal principal y varias secundarias válidas dentro de una transacción;
+- rechazo de una segunda principal por
+  `UQ_locations_main_per_tenant`;
+- `SchemaCheck` sin diferencias entre entidad y base;
+- tests, e2e, lint y build correctos;
+- commit local: `887b230 feat: add location persistence`.
 
-Pendiente antes del commit:
-
-1. Probar dentro de una transacción que una sucursal principal y varias
-   secundarias son válidas.
-2. Comprobar que una segunda principal para el mismo tenant falla exactamente
-   por `UQ_locations_main_per_tenant`.
-3. Ejecutar suite completa, lint, build y `git diff --check`.
-4. Commit sugerido: `feat: add location persistence`.
-5. `git push` a `development`.
+Solo falta publicar los commits locales con `git push` a `development`.
 
 El tab del archivo antiguo
 `src/tenants/entities/1793227884874-tenant.entity.ts.ts` puede seguir abierto en
