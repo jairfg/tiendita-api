@@ -3,6 +3,9 @@
 > Diseño funcional y técnico de la primera parte del producto.
 > Última actualización: 27 de octubre de 2026.
 
+El estado de implementación y los pasos pendientes se mantienen en
+[`fase-1-roadmap-implementacion.md`](./fase-1-roadmap-implementacion.md).
+
 ## 1. Objetivo
 
 Construir la base sobre la que vivirán los módulos de productos, ventas, gastos y fiados:
