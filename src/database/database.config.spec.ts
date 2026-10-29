@@ -15,6 +15,8 @@ describe('database configuration', () => {
       type: 'postgres',
       url: databaseUrl,
       applicationName: 'tiendita-api',
+      uuidExtension: 'pgcrypto',
+      installExtensions: false,
       poolSize: 10,
       synchronize: false,
       migrationsRun: false,

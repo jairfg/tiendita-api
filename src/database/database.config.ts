@@ -8,6 +8,8 @@ function createBaseDatabaseOptions(databaseUrl: string) {
     type: 'postgres',
     url: databaseUrl,
     applicationName: 'tiendita-api',
+    uuidExtension: 'pgcrypto',
+    installExtensions: false,
     poolSize: 10,
 
     synchronize: false,
