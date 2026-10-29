@@ -56,11 +56,12 @@ Completado:
 - TypeORM, datasource CLI, estrategia `snake_case` y scripts de migración.
 - Runtime sin sincronización ni instalación automática de extensiones.
 - Migración controlada de `pgcrypto`.
-- Entidades, migraciones y constraints de `Tenant` y `Location`.
-- Verificación real de una sola location principal y ausencia de drift.
+- Entidades, migraciones y constraints de `Tenant`, `Location` y `User`.
+- Verificación real de una sola location principal, constraints de `users` y
+  ausencia de drift.
 
-Siguiente checkpoint: `User`; después, `AuthSession` y
-`PasswordResetToken`, una entidad por vez.
+Siguiente checkpoint: `AuthSession`; después, `PasswordResetToken`, una entidad
+por vez.
 
 ## 5. Entidades y migraciones
 
@@ -109,19 +110,17 @@ enums nativos de PostgreSQL.
 - `created_at` y `updated_at` como `timestamptz`.
 - Índice único parcial: máximo un `is_main = true` por tenant.
 
-### `users` — siguiente
+### `users` — implementado
 
 - `id uuid`; `tenant_id uuid` con FK `RESTRICT` e índice.
 - `first_name varchar(80)` y `last_name varchar(120)`, no vacíos.
-- `email varchar(254)` normalizado y único global por `lower(email)`.
+- `email varchar(254)` único global; la aplicación lo guarda con `trim` y
+  minúsculas, y un `CHECK` exige `email = lower(btrim(email))`.
 - `password_hash text` con `select: false`.
 - `status varchar(16)`: `ACTIVE` o `DISABLED`.
 - `last_login_at` nullable; `created_at` y `updated_at` como `timestamptz`.
 
-El índice funcional del email se crea explícitamente en la migración y se
-excluye de la sincronización automática de TypeORM.
-
-### `auth_sessions`
+### `auth_sessions` — siguiente
 
 - `id uuid`; `user_id uuid` con FK `CASCADE`.
 - `token_family_id uuid` indexado; `refresh_token_hash char(64)` único y
